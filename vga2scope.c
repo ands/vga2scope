@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 	int outChannels = out->nChannels;
 	unsigned char *outData = (unsigned char*)out->imageData;
 
-	// position windows
+	// position windows // TODO: make debug output windows optional?
 	cvNamedWindow("frame", CV_WINDOW_AUTOSIZE);
 	cvMoveWindow("frame", 0, 32);
 	cvNamedWindow("edges", CV_WINDOW_AUTOSIZE);
@@ -69,9 +69,9 @@ int main(int argc, char **argv)
 		CvSeq *contours;
 		int contourCount = cvFindContours(
 			edges, storage, &contours, sizeof(CvContour),
-			CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint(0,0));
+			CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint(0, 0));
 		cvZero(lines);
-		cvDrawContours(lines, contours, cvScalar(0, 255, 0, 255), cvScalarAll(0), 100, 1, 8, cvPoint(0,0));
+		cvDrawContours(lines, contours, cvScalar(32, 255, 32, 255), cvScalarAll(0), 100, 1, 8, cvPoint(0, 0));
 		cvShowImage("lines", lines);
 
 		// calculate total length over all contours
@@ -91,52 +91,59 @@ int main(int argc, char **argv)
 
 		// write output image
 		int cx = 0, cy = 0;
+		float xScale = 255.0f / frame->width;
+		float yScale = 255.0f / frame->height;
+		unsigned char *dp = &outData[1];
 		for(CvSeq *c = contours; c; c = c->h_next)
 		{
-			for(int i = 0; i < c->total - 1; i++)
+			CvPoint *p0 = CV_GET_SEQ_ELEM(CvPoint, c, 0);
+			for(int i = 1; i < c->total; i++)
 			{
-				CvPoint *p0 = CV_GET_SEQ_ELEM(CvPoint, c, i);
-				CvPoint *p1 = CV_GET_SEQ_ELEM(CvPoint, c, i + 1);
-				int dx = p1->x - p0->x;
-				int dy = p1->y - p0->y;
-				float l = sqrtf(dx * dx + dy * dy);
-				float lf = l * factor;
-				int n = (int)lf;
+				CvPoint *p1 = CV_GET_SEQ_ELEM(CvPoint, c, i);
+				float x0x1 = p1->x - p0->x;
+				float y0y1 = p1->y - p0->y;
+				int n = (int)(sqrtf(x0x1 * x0x1 + y0y1 * y0y1) * factor);
+				float x =          (float)p0->x * xScale;
+				float y = 255.0f - (float)p0->y * yScale;
+				float dt = 1.0f / (float)(n - 1);
+				float dx = dt *  x0x1 * xScale;
+				float dy = dt * -y0y1 * yScale;
 				for (int j = 0; j < n; j++)
-				{ // TODO: pointerz!
-					float t = (float)j / (float)(n - 1);
-					outData[cy * outStep + cx * outChannels + 1] = (int)((p0->x + t * dx) / frame->width * 255.0f);
-					outData[cy * outStep + cx * outChannels + 2] = (int)(255.0f - (p0->y + t * dy) / frame->height * 255.0f);
-					cx++;
-					if (cx == vgaWidth)
+				{
+					dp[0] = (unsigned char)x;
+					dp[1] = (unsigned char)y;
+					x += dx;
+					y += dy;
+					dp += outChannels;
+					if (++cx == vgaWidth)
 					{
 						cx = 0;
-						cy++;
+						dp = &outData[++cy * outStep + 1];
 						if (cy == vgaHeight)
 							goto full;
 					}
 				}
+				p0 = p1;
 			}
 		}
 
 		// fill last few pixels with last pixel value, if there are any left
-		int lastX = outData[cy * outStep + cx * outChannels + 1];
-		int lastY = outData[cy * outStep + cx * outChannels + 2];
 		for (; cy < vgaHeight; cy++)
 		{
 			for (;cx < vgaWidth; cx++)
 			{
-				outData[cy * outStep + cx * outChannels + 1] = lastX;
-				outData[cy * outStep + cx * outChannels + 2] = lastY;
+				outData[cy * outStep + cx * outChannels + 1] = 0;
+				outData[cy * outStep + cx * outChannels + 2] = 0;
 			}
+			cx = 0;
 		}
 
 		full:
 		cvReleaseMemStorage(&storage);
 		cvShowImage("out", out);
 
-		if (isVideoFile)
-			usleep(8000); // TODO: proper synchronization
+		//if (isVideoFile)
+		//	usleep(8000); // TODO: proper synchronization
 	}
 	cvReleaseImage(&out);
 	cvReleaseImage(&lines);

@@ -1,5 +1,5 @@
 all:
-	$(CC) -O2 -o vga2scope *.c -I/usr/include/opencv -lm -lopencv_core -lopencv_highgui -lopencv_imgproc
+	$(CC) -O3 -o vga2scope *.c -I/usr/include/opencv -lm -lopencv_core -lopencv_highgui -lopencv_imgproc
 
 display:
 	#cvt -r 1600 300
