@@ -6,19 +6,22 @@
 int main(int argc, char **argv)
 {
 	// get command line parameters
-	if(argc < 4)
+	if(argc < 6)
 	{
-		printf("Usage: %s <video> <vga width> <vga height>\n", argv[0]);
-		printf("Usage: %s <camera id> <vga width> <vga height>\n", argv[0]);
+		printf("Usage: %s <video> <vga window x> <vga window y> <vga width> <vga height>\n", argv[0]);
+		printf("Usage: %s <camera id> <vga window x> <vga window y> <vga width> <vga height>\n", argv[0]);
 		exit(0);
 	}
 	const char *filename = argv[1];
-	int width = atoi(argv[2]);
-	int height = atoi(argv[3]);
-	int outputPixelCount = width * height;
+	int vgaX = atoi(argv[2]);
+	int vgaY = atoi(argv[3]);
+	int vgaWidth = atoi(argv[4]);
+	int vgaHeight = atoi(argv[5]);
+	int outputPixelCount = vgaWidth * vgaHeight;
 
 	// opencv initializations
 	CvCapture* cap = cvCaptureFromFile(filename);
+	int isVideoFile = cap != 0;
 	if (!cap)
 		cap = cvCaptureFromCAM(atoi(filename));
 	if (!cap)
@@ -35,7 +38,7 @@ int main(int argc, char **argv)
 	}
 	IplImage* edges = cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 1);
 	IplImage* lines = cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 3);
-	IplImage* out = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
+	IplImage* out = cvCreateImage(cvSize(vgaWidth, vgaHeight), IPL_DEPTH_8U, 3);
 	int outStep = out->widthStep;
 	int outChannels = out->nChannels;
 	unsigned char *outData = (unsigned char*)out->imageData;
@@ -48,7 +51,7 @@ int main(int argc, char **argv)
 	cvNamedWindow("lines", CV_WINDOW_AUTOSIZE);
 	cvMoveWindow("lines", 2 * frame->width, 32);
 	cvNamedWindow("out", CV_WINDOW_AUTOSIZE);
-	cvMoveWindow("out", -1, 900 - height - 24); // TODO: make VGA window position configurable
+	cvMoveWindow("out", vgaX, vgaY);
 
 	while (42)
 	{
@@ -58,7 +61,7 @@ int main(int argc, char **argv)
 		cvShowImage("frame", frame);
 
 		// edge detection
-		cvCanny(frame, edges, 128.0, 130.0, 3); // TODO: tweak parameters?
+		cvCanny(frame, edges, 128.0, 130.0, 3); // TODO: tweakable parameters?
 		cvShowImage("edges", edges);
 
 		// get contours
@@ -105,11 +108,11 @@ int main(int argc, char **argv)
 					outData[cy * outStep + cx * outChannels + 1] = (int)((p0->x + t * dx) / frame->width * 255.0f);
 					outData[cy * outStep + cx * outChannels + 2] = (int)(255.0f - (p0->y + t * dy) / frame->height * 255.0f);
 					cx++;
-					if (cx == width)
+					if (cx == vgaWidth)
 					{
 						cx = 0;
 						cy++;
-						if (cy == height)
+						if (cy == vgaHeight)
 							goto full;
 					}
 				}
@@ -119,9 +122,9 @@ int main(int argc, char **argv)
 		// fill last few pixels with last pixel value, if there are any left
 		int lastX = outData[cy * outStep + cx * outChannels + 1];
 		int lastY = outData[cy * outStep + cx * outChannels + 2];
-		for (; cy < height; cy++)
+		for (; cy < vgaHeight; cy++)
 		{
-			for (;cx < width; cx++)
+			for (;cx < vgaWidth; cx++)
 			{
 				outData[cy * outStep + cx * outChannels + 1] = lastX;
 				outData[cy * outStep + cx * outChannels + 2] = lastY;
@@ -132,7 +135,8 @@ int main(int argc, char **argv)
 		cvReleaseMemStorage(&storage);
 		cvShowImage("out", out);
 
-		//usleep(10000); // TODO: wait for next frame timestamp or output a video?
+		if (isVideoFile)
+			usleep(8000); // TODO: proper synchronization
 	}
 	cvReleaseImage(&out);
 	cvReleaseImage(&lines);
