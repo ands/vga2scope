@@ -14,6 +14,9 @@ This step was necessary as in my setup as the VGA-Port wouldn't show up using ``
 ``` sudo nano /etc/default/grub ``` 
 ## Edit Parameters
 Change line ``` GRUB_CMDLINE_LINUX_DEFAULT="quiet splash" ``` to ``` GRUB_CMDLINE_LINUX_DEFAULT="quiet splash video=VGA-1:e"``` 
+## Update Grub and reboot
+``` sudo update-grub ```
+``` sudo reboot ```
 
 # Compile
 ``` g++ -o vga2scope vga2scope.cpp `pkg-config --cflags --libs opencv4` ```
@@ -30,3 +33,15 @@ Connect pins 1 (Red) to X (Channel 1) and 2 (Green) to Y (Channel 2) of the VGA 
 Also connect GND to the oscilloscope using the outer metal layer of the port.
 
 ![VGA to Oscilloscope Setup](https://github.com/ands/vga2scope/raw/master/setup.jpg)
+
+
+# Troubleshooting
+1. ``` xrandr --output VGA-1 --mode "scope" --right-of LVDS1 ``` returns an error like below
+``` 
+X Error of failed request:  BadMatch (invalid parameter attributes)
+  Major opcode of failed request:  140 (RANDR)
+  Minor opcode of failed request:  18 (RRAddOutputMode)
+  Serial number of failed request:  39
+  Current serial number in output stream:  40 
+```
+This error occurs when 
