@@ -47,8 +47,9 @@ int main(int argc, char **argv)
     cv::moveWindow("edges", 640, 32);
     cv::namedWindow("lines", cv::WINDOW_AUTOSIZE);  // Contour-drawn image
     cv::moveWindow("lines", 1280, 32);
-    cv::namedWindow("out", cv::WINDOW_AUTOSIZE);    // Output image
-    cv::moveWindow("out", vgaX, vgaY);
+    cv::namedWindow("out", cv::WINDOW_NORMAL); // Create the "out" window
+    cv::setWindowProperty("out", cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN); // Fullscreen mode
+    cv::setWindowProperty("out", cv::WND_PROP_TOPMOST, 1); // Keep the window on top
 
     // Main processing loop
     while (true)
